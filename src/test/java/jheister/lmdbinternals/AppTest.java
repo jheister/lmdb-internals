@@ -4,8 +4,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 import org.lmdbjava.Dbi;
+import org.lmdbjava.DbiFlags;
 import org.lmdbjava.Env;
-import org.lmdbjava.EnvFlags;
 import org.lmdbjava.Txn;
 
 import java.io.File;
@@ -16,20 +16,63 @@ import java.nio.channels.FileChannel;
 
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
 import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.lmdbjava.EnvFlags.MDB_NOSUBDIR;
 
 public class AppTest {
     @Rule
     public final TemporaryFolder tmp = new TemporaryFolder();
 
+    private final ByteBuffer keyBuffer = ByteBuffer.allocateDirect(12);
+    private final ByteBuffer valueBuffer = ByteBuffer.allocateDirect(12);
+
+    @Test public void
+    named_db_has_root_pageNr_in_main_db() {
+        File file = new File(tmp.getRoot(), "lmdb");
+        try (Env<ByteBuffer> env = Env.create().open(file, MDB_NOSUBDIR)) {
+            Dbi<ByteBuffer> db = env.openDbi("named-db", DbiFlags.MDB_CREATE);
+            Dbi<ByteBuffer> mainDb = env.openDbi((byte[]) null);
+
+            try (Txn<ByteBuffer> txn = env.txnWrite()) {
+                put(txn, db, "Hello", "World");
+                txn.commit();
+            }
+
+            /*
+            * LMDB has 2 DBs:
+            *   free pages
+            *   main DB
+            *
+            * when using named DBs:
+            *   main DB stores name -> DB metadata (inc root)
+            *   when read?
+            *   when written?
+            *     on commit we have to iterate through all DBs and write their root pages into the main DB
+            *   consequence of setting large number of DBs?
+            *     larger txn object
+            *     iterations over all to init them
+            * */
+
+            try (Txn<ByteBuffer> txn = env.txnRead()) {
+                mainDb.iterate(txn).forEachRemaining(kv -> {
+                    kv.val().order(LITTLE_ENDIAN);
+                    System.out.println(string(kv.key()) + " " + Db.read(kv.val()));
+                });
+            }
+        }
+    }
+
+    //todo: test how ops get slower when you have many named DBs (begin txn, put, get, commit)
+
     @Test
     public void shouldAnswerWithTrue() throws IOException {
         File file = new File(tmp.getRoot(), "lmdb");
-        try (Env<ByteBuffer> env = Env.create().open(file, EnvFlags.MDB_NOSUBDIR)) {
+        try (Env<ByteBuffer> env = Env.create().open(file, MDB_NOSUBDIR)) {
             Dbi<ByteBuffer> db = env.openDbi((byte[]) null);
 
-            writeSomeStuff(env, db);
-            writeSomeStuff(env, db);
-
+            try (Txn<ByteBuffer> txn = env.txnWrite()) {
+                put(txn, db, "Hello", "World");
+                txn.commit();
+            }
 
             long pageCount = file.length() / 4096;
             System.out.println("DB file has " + pageCount + " pages.");
@@ -53,19 +96,21 @@ public class AppTest {
         }
     }
 
-    private void writeSomeStuff(Env<ByteBuffer> env, Dbi<ByteBuffer> db) {
-        try (Txn<ByteBuffer> txn = env.txnWrite()) {
-            ByteBuffer keyBuffer = ByteBuffer.allocateDirect(12);
-            ByteBuffer valueBuffer = ByteBuffer.allocateDirect(12);
+    private void put(Txn<ByteBuffer> txn, Dbi<ByteBuffer> db, String key, String value) {
+        keyBuffer.clear();
+        valueBuffer.clear();
+        keyBuffer.put(key.getBytes(UTF_8));
+        valueBuffer.put(value.getBytes(UTF_8));
+        keyBuffer.flip();
+        valueBuffer.flip();
 
-            keyBuffer.put("Hello".getBytes(UTF_8));
-            valueBuffer.put("World".getBytes(UTF_8));
-            keyBuffer.flip();
-            valueBuffer.flip();
+        db.put(txn, keyBuffer, valueBuffer);
+    }
 
-            db.put(txn, keyBuffer, valueBuffer);
-            txn.commit();
-        }
+    private static String string(ByteBuffer buffer) {
+        byte[] bytes = new byte[buffer.remaining()];
+        buffer.get(bytes);
+        return new String(bytes, UTF_8);
     }
 
     private static class Meta {
