@@ -1,6 +1,8 @@
 package jheister.lmdbinternals;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Node {
     private final ByteBuffer buffer;
@@ -29,6 +31,10 @@ public class Node {
         return value;
     }
 
+    public Page subPage() {
+        return new Page(buffer, offset + KEY_DATA + keySize());//todo: limt size somehow?
+    }
+
     private int keySize() {
         return Short.toUnsignedInt(buffer.getShort(offset + KEY_SIZE));
     }
@@ -37,13 +43,43 @@ public class Node {
         return Short.toUnsignedInt(buffer.getShort(offset + DATA_SIZE));
     }
 
+    public List<Flag> flags() {
+        return Flag.from(buffer.getShort(offset + FLAGS));
+    }
+
+    public boolean is(Flag flag) {
+        return (buffer.getShort(offset + FLAGS) & flag.value) != 0;
+    }
+
     public int childPage() {
-        return valueSize();
+        return valueSize();//todo: should be long including flags since 64bit
     }
 
     private void getBytes(byte[] value, int newPosition) {
         ByteBuffer duplicate = buffer.duplicate();
         duplicate.position(newPosition);
         duplicate.get(value);
+    }
+
+    public enum Flag {
+        F_BIGDATA(0x01),
+        F_SUBDATA(0x02),
+        F_DUPDATA(0x04);
+
+        private int value;
+
+        Flag(int value) {
+            this.value = value;
+        }
+
+        public static List<Flag> from(short flags) {
+            List<Flag> result = new ArrayList<>();
+            for (Flag flag : Flag.values()) {
+                if ((flags & flag.value) != 0) {
+                    result.add(flag);
+                }
+            }
+            return result;
+        }
     }
 }

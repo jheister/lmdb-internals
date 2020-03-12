@@ -31,7 +31,7 @@ public class Page {
         return (mpLower - 16) >> 1;//todo: the shift accunts for the size of pointers?
     }
 
-    public PageType pageType() {
+    public PageType pageType() {//todo: cannot get type, have to ask if it has type since can have several
         short flags = buffer.getShort(offset + 10);
 
         return PageType.from(flags);
