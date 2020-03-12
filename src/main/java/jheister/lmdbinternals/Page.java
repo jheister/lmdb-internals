@@ -5,8 +5,6 @@ import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 
 public class Page {
-    public static final int PAGESIZE = 4096;
-
     public int offset;
     private final ByteBuffer buffer;
     public final Meta meta;

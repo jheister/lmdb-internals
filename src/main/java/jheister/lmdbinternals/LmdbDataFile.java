@@ -7,9 +7,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
 
 import static java.nio.ByteOrder.LITTLE_ENDIAN;
-import static jheister.lmdbinternals.Page.PAGESIZE;
 
 class LmdbDataFile implements AutoCloseable {
+    public static final int PAGESIZE = 4096;
+
     private final ByteBuffer buffer;
     private final RandomAccessFile file;
 

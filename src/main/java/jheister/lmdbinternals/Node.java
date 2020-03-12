@@ -61,6 +61,10 @@ public class Node {
         duplicate.get(value);
     }
 
+    public Db subDb() {
+        return new Db(buffer, offset + KEY_DATA + keySize());
+    }
+
     public enum Flag {
         F_BIGDATA(0x01),
         F_SUBDATA(0x02),

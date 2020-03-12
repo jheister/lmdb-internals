@@ -9,6 +9,7 @@ import org.lmdbjava.Txn;
 import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.UUID;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static jheister.lmdbinternals.Node.Flag.F_DUPDATA;
@@ -29,6 +30,10 @@ public class DupSortDb extends TestBase {
                 put(txn, db, "Bye", "Others");
                 put(txn, db, "Single", "Value");//todo: can I insert a value too large here and have it blow up when it becomes a subpage?
 
+                for (int i = 0; i < 100; i++) {
+                    put(txn, db, "Many", UUID.randomUUID().toString());
+                }
+
                 txn.commit();
             }
         }
@@ -42,15 +47,17 @@ public class DupSortDb extends TestBase {
             System.out.println(lmdbDataFile.getPage(i));
         }
 
-
-
         lmdbDataFile.mainRoot().forEachNode(node -> {
             System.out.println(new String(node.key(), UTF_8));
+
 
             if (node.is(F_DUPDATA) && !node.is(F_SUBDATA)) {
                 node.subPage().forEachNode(innerNode -> {
                     System.out.println("\t" + new String(innerNode.key(), UTF_8) + ":" + new String(innerNode.value(), UTF_8));
                 });
+            } else if (node.is(F_SUBDATA)) {
+                System.out.println(node.subDb());
+                System.out.println(lmdbDataFile.getPage(node.subDb().rootPage()));
             } else {
                 System.out.println("\t:" + new String(node.value(), UTF_8));
             }

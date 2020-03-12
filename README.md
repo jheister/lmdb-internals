@@ -36,17 +36,39 @@ I think (tbc) roots get lazily read as DBs are touched in a txn. This would mean
 - reading/writing to many DBs in a txn is slower than the same actions all on the same DB
 - the speed of main DB vs. 1 named DB should be similar once you do enough ops on it (no repeated cost)
 
+### Space in a Leaf
+
+At the page start is a sorted array of node pointers. At the end of the page (growing to the left) is the nodes.
+Inserting a node will append the data into the free space. The pointer list is shifted as required to make space. 
+Data is not moved in such situations.
+
+When entries change content they stay where they are. When they grow/shrink they are removed, all other data shifted
+to the right and we are re-added in the free space. So there is no fragmentation within pages.
+
 ### Overflow pages
 
 They are consecutive pages. This should mean that COW is done over the entire area,
 so modifying a small piece of a huge object would be inefficient.
+
+### DUPSORT
+
+This allows storing multiple distinct values per key.
+
+They are stored either:
+- Same as normal (if single value)
+- On a sub-page (value of the key is a page which can then be iterated over etc.)
+- A sub-db (value of the node is a DB object same as for named DBs)
+
+Where multiple are present they are stored as key so I assume size restrictions apply.
+
+I assume we switch from sub-page to sub-db when the value gets too large for the page. A normal value
+becomes an overflow page here but this results in a sub-db.
 
 ## Questions
 - Named DBs
   - how does the max number of DBs affect things
   - how much slower is named DB vs. main DB
   - when do roots get read?
-- How is DUP_SORT DB implemented
 - How are overflow pages implemented
   - cost of modifying a huge object is huge?
 - How is space in a leaf/branch managed when data is variable size
