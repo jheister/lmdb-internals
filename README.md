@@ -9,12 +9,8 @@
   - how does the max number of DBs affect things
   - how much slower is named DB vs. main DB
   - when do roots get read?
-- How are overflow pages implemented
-  - cost of modifying a huge object is huge?
 - how is free DB structured
 - how does number of readers / max readers affect things?
-- does fragmentation in a page get reclaimed other than through page splits/merges?
-
 
 ## Page types
 
@@ -118,3 +114,8 @@ instead of pb_upper and pb_lower.
 | md_overflow_pages | 8
 | md_entries        | 8             |
 | md_root           | 8             | page number of the root page for this DB
+
+#### MDB_Node
+
+| Field             | Size          | Notes |
+| ----------------- |:-------------:|-------|

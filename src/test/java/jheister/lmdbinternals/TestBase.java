@@ -14,7 +14,7 @@ public abstract class TestBase {
     public final TemporaryFolder tmp = new TemporaryFolder();
 
     private final ByteBuffer keyBuffer = ByteBuffer.allocateDirect(12);
-    private final ByteBuffer valueBuffer = ByteBuffer.allocateDirect(36);
+    private final ByteBuffer valueBuffer = ByteBuffer.allocateDirect(4096 * 3);
 
     public void put(Txn<ByteBuffer> txn, Dbi<ByteBuffer> db, String key, String value) {
         keyBuffer.clear();

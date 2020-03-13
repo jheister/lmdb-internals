@@ -5,13 +5,14 @@ import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 
 public class Page {
+    public static final int HEADER_END = 16;
     public int offset;
     private final ByteBuffer buffer;
     public final Meta meta;
 
     public Page(ByteBuffer buffer, int offset) {
         this.buffer = buffer;
-        meta = new Meta(buffer, offset + 16);
+        meta = new Meta(buffer, offset + HEADER_END);
         this.offset = offset;
     }
 
@@ -26,7 +27,7 @@ public class Page {
     public int numEntries() {
         int mpLower = Short.toUnsignedInt(buffer.getShort(offset + 12));
 
-        return (mpLower - 16) >> 1;//todo: the shift accunts for the size of pointers?
+        return (mpLower - HEADER_END) >> 1;//todo: the shift accunts for the size of pointers?
     }
 
     public PageType pageType() {//todo: cannot get type, have to ask if it has type since can have several

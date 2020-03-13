@@ -4,6 +4,9 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
 
+import static jheister.lmdbinternals.Node.Flag.F_BIGDATA;
+import static jheister.lmdbinternals.Page.HEADER_END;
+
 public class Node {
     private final ByteBuffer buffer;
     public final int offset;
@@ -27,7 +30,14 @@ public class Node {
     public byte[] value() {
         int size = valueSize();
         byte[] value = new byte[size];
-        getBytes(value, offset + KEY_DATA + keySize());
+
+        if (F_BIGDATA.isSet(buffer.getShort(offset + FLAGS))) {
+            int overflowPageNo = (int) buffer.getLong(offset + KEY_DATA + keySize());
+
+            getBytes(value, overflowPageNo * LmdbDataFile.PAGESIZE + HEADER_END);//todo: should start reading at the right place
+        } else {
+            getBytes(value, offset + KEY_DATA + keySize());
+        }
         return value;
     }
 
@@ -84,6 +94,10 @@ public class Node {
                 }
             }
             return result;
+        }
+
+        public boolean isSet(short flags) {
+            return flags * value != 0;
         }
     }
 }
