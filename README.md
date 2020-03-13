@@ -4,6 +4,18 @@
 - data file
 - lock file
 
+## Questions
+- Named DBs
+  - how does the max number of DBs affect things
+  - how much slower is named DB vs. main DB
+  - when do roots get read?
+- How are overflow pages implemented
+  - cost of modifying a huge object is huge?
+- how is free DB structured
+- how does number of readers / max readers affect things?
+- does fragmentation in a page get reclaimed other than through page splits/merges?
+
+
 ## Page types
 
 - P_BRANCH
@@ -64,14 +76,45 @@ Where multiple are present they are stored as key so I assume size restrictions 
 I assume we switch from sub-page to sub-db when the value gets too large for the page. A normal value
 becomes an overflow page here but this results in a sub-db.
 
-## Questions
-- Named DBs
-  - how does the max number of DBs affect things
-  - how much slower is named DB vs. main DB
-  - when do roots get read?
-- How are overflow pages implemented
-  - cost of modifying a huge object is huge?
-- How is space in a leaf/branch managed when data is variable size
-- how is free DB structured
-- how does number of readers / max readers affect things?
-- does fragmentation in a page get reclaimed other than through page splits/merges?
+## Structs
+
+#### MDB_Page (mostly common structure)
+
+| Field         | Size          | Notes |
+| ------------- |:-------------:|-------|
+| p_pgno        | 8             |
+| mp_pad        | 2             | key size or DUP_FIXED
+| mp_flags      | 2             | 
+| pb_lower      | 2             | end of pointer list
+| pb_upper      | 2             | start of data space
+| node pointers |               | count based on pb_lower - 16 * 2
+| data          |               | starting from the right up to pb_upper
+
+Overflow page is a bit different. Always consicutive, only first page has header. count of overflow 
+instead of pb_upper and pb_lower.
+
+#### MDB_Meta
+
+| Field         | Size          | Notes |
+| ------------- |:-------------:|-------|
+| mm_magic      | 4             |
+| mm_version    | 4             | 
+| mm_address    | 8             | for fixed mmap address env
+| mm_mapsize    | 8             | size of mmap region
+| Free DB       | 48            | MDB_DB for free DB
+| Main DB       | 48            | MDB_DB for main DB
+| mm_last_pg    | 8             | last page used in DB
+| mm_txnid      | 8             | txn that wrote this meta
+
+#### MDB_Db
+
+| Field             | Size          | Notes |
+| ----------------- |:-------------:|-------|
+| md_pad            | 4             | whats the difference between this and the field on the pages?
+| md_flags          | 2             |
+| md_depth          | 2             |
+| md_branch_pages   | 8             |
+| md_leaf_pages     | 8             |
+| md_overflow_pages | 8
+| md_entries        | 8             |
+| md_root           | 8             | page number of the root page for this DB
